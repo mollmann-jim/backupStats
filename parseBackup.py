@@ -111,7 +111,7 @@ def parseData(myData):
         print('fields:', fields)
     except Exception as e:
         # Print a custom message and the exact error description
-        print(f"An error occurred: {e}")
+        print(f"parseData: An error occurred: {e}")
         for i in range(len(fields)):
             try:
                 regexC    = re.compile(subregex[i])
@@ -127,10 +127,22 @@ def parseData(myData):
         
     return fields
 
-def getTime(file):
-    dateTime = file.replace('out.', '')
-    logtime = dt.datetime.strptime(dateTime, '%Y-%m-%d-%H.%M.%S')
+def getTime(fields):
+    try:
+        logtime = dt.datetime.strptime(fields[0], '%Y-%m-%d.%H:%M:%S')
+    except Exception as e:
+        print('getTime:', fields[0], "{e}")
+        logtime = None
+    try:
+        utctime = dt.datetime.fromtimestamp(int(fields[1]), dt.timezone.utc)
+    except Exception as e:
+        print('getTime:', fields[1], f"{e}")
+        utctime = None
+    fields[0] = logtime
+    fields[1] = utctime
+    return fields
     
+
 def main():
     global debug
     myParms = argparse.ArgumentParser(description = 'global parms')
@@ -147,8 +159,9 @@ def main():
     myData = readData(filename)
     fields = parseData(myData)
     print(fields)
-    myTime = getTime(filename)
-    save.save(backupName, myTime, fields)
+    fields = getTime(fields)
+    print(fields)
+    save.save(backupName, fields)
 
     
 if __name__ == '__main__':
