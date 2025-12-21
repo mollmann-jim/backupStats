@@ -6,11 +6,11 @@ import datetime as dt
 import sqlite3
 from dateutil.tz import tz
 import pprint
-import json
+#import json
 #from sys import path
 #path.append('/home/jim/tools/Ecobee/')
 #import pyecobee
-import time
+#import time
 import os
 import sys
 from traceback import print_exc
@@ -21,29 +21,34 @@ debug = False
 
 class saveData():
     def __init__(self):
-        DBname = 'backups.sql'
-        self.DB = sqlite3.connect(DBname)
+        home = os.getenv('HOME')
+        DBname = home + '/tools/backupStats/backups.sql'
+        sqlite3.register_adapter(dt.datetime, adapt_datetime)
+        sqlite3.register_converter("DATETIME", convert_datetime)
+        self.DB = sqlite3.connect(DBname, detect_types=sqlite3.PARSE_DECLTYPES)
         self.DB.row_factory = sqlite3.Row
         self.table = 'backupStats'
         self.c = None
         self.initDB()
         #self.DB.set_trace_callback(print)
-        
+
     def initDB(self):
         global debug
         self.c = self.DB.cursor()
+        self.devel = False
         indexName = 'Nameindex'
         
         drop = 'DROP INDEX IF EXISTS ' + indexName + ';'
-        if debug: print('Dropping index ', indexName)
-        if debug: self.c.execute(drop)
+        if self.devel: print('Dropping index ', indexName)
+        if self.devel: self.c.execute(drop)
         drop = 'DROP TABLE IF EXISTS ' + self.table + ';'
-        if debug: print('Dropping table ', self.table)
-        if debug: self.c.execute(drop)
+        if self.devel: print('Dropping table ', self.table)
+        if self.devel: self.c.execute(drop)
         
         create = 'CREATE TABLE IF NOT EXISTS ' + self.table + ' ( \n' \
             ' recordID        INTEGER PRIMARY KEY, \n' \
             ' timestamp       INTEGER DEFAULT CURRENT_TIMESTAMP, \n' \
+            ' utctime         INTEGER, \n' \
             ' backupName      TEXT,    \n' \
             ' files           INTEGER, \n' \
             ' created         INTEGER, \n' \
@@ -56,24 +61,24 @@ class saveData():
             ' bytesRcvd       INTEGER, \n' \
             ' elapsed         INTEGER  \n' \
             ' );'
-        if debug: print(create)
+        if self.devel: print(create)
         self.c.execute(create)
         index  = 'CREATE INDEX IF NOT EXISTS ' + indexName +\
             ' ON ' + self.table + ' (backupName);'
-        if debug: print(index)
+        if self.devel: print(index)
         self.c.execute(index)
 
-    def save(self, backupName, myTime, fields):
+    def save(self, backupName, fields):
         insert = 'INSERT INTO ' + self.table + ' (                    \n' \
-            'timestamp, backupName, files, created, deleted, regular, \n' \
-            'totalSize, transferredSize, literalSize, bytesSent,      \n' \
-            'bytesRcvd, elapsed )                                     \n' \
-            'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);'
-        myValues = [myTime] + [backupName] + fields
-        print(myValues)
+            'timestamp, utctime, backupName, files, created, deleted, \n' \
+            'regular, totalSize, transferredSize, literalSize,        \n' \
+            'bytesSent, bytesRcvd, elapsed )                          \n' \
+            'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);'
+        if self.devel: print(insert)
+        myValues = [backupName] + fields
         values = tuple(myValues)
-        print(values)
         self.c.execute(insert, values)
+        self.DB.commit()
         
 def readData(filename):
     myDate = ''
@@ -88,7 +93,8 @@ def readData(filename):
     return myData
 
 def parseData(myData):
-    regex = r'Start time: ([0-9:.-]+).+Epoch: ([0-9]+)\n[\S\s]+Number of files: ([0-9,]+).+\nNumber of created files: ([0-9,]+).+\nNumber of deleted files: ([0-9,]+).+\nNumber of regular files transferred: ([0-9,]+)\nTotal file size: ([0-9,]+).+\nTotal transferred file size: ([0-9,]+).+\nLiteral data: ([0-9,]+).+[\S\s]+Total bytes sent: ([0-9,]+)\nTotal bytes received: ([0-9,]+).+[\S\s]+make_snapshot.bash took ([0-9,]+)'
+    regex = r'Start time: ([0-9:.-]+).+Epoch: ([0-9]+)\n[\S\s]+Number of files: ([0-9,]+).+\nNumber of created files: ([0-9,]+).+\nNumber of deleted files: ([0-9,]+)\nNumber of regular files transferred: ([0-9,]+)\nTotal file size: ([0-9,]+).+\nTotal transferred file size: ([0-9,]+).+\nLiteral data: ([0-9,]+).+[\S\s]+Total bytes sent: ([0-9,]+)\nTotal bytes received: ([0-9,]+).+[\S\s]+make_snapshot.bash took ([0-9,]+)'
+
     
     subregex = [r'Start time: ([0-9:.-]+)',
                 r'Epoch: ([0-9]+)',
@@ -106,24 +112,23 @@ def parseData(myData):
     try:
         countRegex = re.compile(regex)
         countMatch = countRegex.search(myData)
-        print(countMatch.groups())
         fields = list(countMatch.groups())
-        print('fields:', fields)
     except Exception as e:
-        # Print a custom message and the exact error description
-        print(f"parseData: An error occurred: {e}")
-        for i in range(len(fields)):
-            try:
-                regexC    = re.compile(subregex[i])
-                fields[i] = regexC.search(myData).group(1)
-                print(i, subregex[i], fields[i])
-            except:
-                fields[i] = None
-                print('Failed:', subregex[i])
+        print(f"parseData: An full regex error occurred: {e}")
 
+    if fields.count(None) > 0:
+       for i in range(len(fields)):
+           if fields[i] is None:
+               try:
+                   regexC    = re.compile(subregex[i])
+                   fields[i] = regexC.search(myData).group(1)
+               except:
+                   fields[i] = None
+                   print('parseData - Failed:', i, subregex[i])
     # DEBUG
-    for i in range(len(fields)):
-        print(i, '\t', subregex[i], '\t\t', fields[i])
+    if debug or fields.count(None) > 0:
+        for i in range(len(fields)):
+            print(i, '\t', subregex[i], '\t\t', fields[i])
         
     return fields
 
@@ -141,7 +146,9 @@ def getTime(fields):
     fields[0] = logtime
     fields[1] = utctime
     return fields
-    
+
+def removeCommas(fields):
+    return fields
 
 def main():
     global debug
@@ -158,10 +165,16 @@ def main():
 
     myData = readData(filename)
     fields = parseData(myData)
-    print(fields)
     fields = getTime(fields)
+    fields = removeCommas(fields)
     print(fields)
     save.save(backupName, fields)
+    
+def adapt_datetime(dt):
+    return dt.isoformat(sep=' ')
+
+def convert_datetime(val):
+    return dt.datetime.fromisoformat(val).replace('T', ' ')
 
     
 if __name__ == '__main__':
