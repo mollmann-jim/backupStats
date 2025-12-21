@@ -94,8 +94,7 @@ def readData(filename):
 
 def parseData(myData):
     regex = r'Start time: ([0-9:.-]+).+Epoch: ([0-9]+)\n[\S\s]+Number of files: ([0-9,]+).+\nNumber of created files: ([0-9,]+).+\nNumber of deleted files: ([0-9,]+)\nNumber of regular files transferred: ([0-9,]+)\nTotal file size: ([0-9,]+).+\nTotal transferred file size: ([0-9,]+).+\nLiteral data: ([0-9,]+).+[\S\s]+Total bytes sent: ([0-9,]+)\nTotal bytes received: ([0-9,]+).+[\S\s]+make_snapshot.bash took ([0-9,]+)'
-
-    
+  
     subregex = [r'Start time: ([0-9:.-]+)',
                 r'Epoch: ([0-9]+)',
                 r'Number of files: ([0-9,]+)',
@@ -136,7 +135,7 @@ def getTime(fields):
     try:
         logtime = dt.datetime.strptime(fields[0], '%Y-%m-%d.%H:%M:%S')
     except Exception as e:
-        print('getTime:', fields[0], "{e}")
+        print('getTime:', fields[0], f"{e}")
         logtime = None
     try:
         utctime = dt.datetime.fromtimestamp(int(fields[1]), dt.timezone.utc)
@@ -148,6 +147,13 @@ def getTime(fields):
     return fields
 
 def removeCommas(fields):
+    for i in range(len(fields)):
+        if  isinstance(fields[i], str):
+            try:
+                fields[i] = int(fields[i].replace(',', ''))
+            except Exception as e:
+                print('removeCommas:', i,  fields[i],
+                      f"integer conversion failed {e}")
     return fields
 
 def main():
