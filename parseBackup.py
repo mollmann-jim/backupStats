@@ -159,7 +159,8 @@ def removeCommas(fields):
 def main():
     global debug
     myParms = argparse.ArgumentParser(description = 'global parms')
-    myParms.add_argument('-d', '--debug',   default=True, action='store_true',  help='enable debug')
+    myParms.add_argument('-d', '--debug',   default=False, action='store_true',
+                         help='enable debug')
     myParms.add_argument('backupName', help='backup name')
     myParms.add_argument('logFile', help='backup log file')
     args = myParms.parse_args()
