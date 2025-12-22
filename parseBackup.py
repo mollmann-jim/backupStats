@@ -50,6 +50,7 @@ class saveData():
             ' timestamp       INTEGER DEFAULT CURRENT_TIMESTAMP, \n' \
             ' utctime         INTEGER, \n' \
             ' backupName      TEXT,    \n' \
+            ' host            TEXT,    \n' \
             ' files           INTEGER, \n' \
             ' created         INTEGER, \n' \
             ' deleted         INTEGER, \n' \
@@ -68,14 +69,14 @@ class saveData():
         if self.devel: print(index)
         self.c.execute(index)
 
-    def save(self, backupName, fields):
+    def save(self, backupName, host, fields):
         insert = 'INSERT INTO ' + self.table + ' (                    \n' \
-            'timestamp, utctime, backupName, files, created, deleted, \n' \
-            'regular, totalSize, transferredSize, literalSize,        \n' \
-            'bytesSent, bytesRcvd, elapsed )                          \n' \
-            'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);'
+            'backupName, host, timestamp, utctime, files, created,    \n' \
+            'deleted, regular, totalSize, transferredSize,            \n' \
+            'literalSize, bytesSent, bytesRcvd, elapsed )             \n' \
+            'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);'
         if self.devel: print(insert)
-        myValues = [backupName] + fields
+        myValues = [backupName, host] + fields
         values = tuple(myValues)
         self.c.execute(insert, values)
         self.DB.commit()
@@ -162,11 +163,13 @@ def main():
     myParms.add_argument('-d', '--debug',   default=False, action='store_true',
                          help='enable debug')
     myParms.add_argument('backupName', help='backup name')
-    myParms.add_argument('logFile', help='backup log file')
+    myParms.add_argument('host',       help='hostname')
+    myParms.add_argument('logFile',    help='backup log file')
     args = myParms.parse_args()
     debug = args.debug
     if debug: print(args)
     backupName = args.backupName
+    host = args.host
     filename = args.logFile
     save = saveData()
 
@@ -175,7 +178,7 @@ def main():
     fields = getTime(fields)
     fields = removeCommas(fields)
     print(fields)
-    save.save(backupName, fields)
+    save.save(backupName, host, fields)
     
 def adapt_datetime(dt):
     return dt.isoformat(sep=' ')
