@@ -94,7 +94,7 @@ def readData(filename):
     return myData
 
 def parseData(myData):
-    regex = r'Start time: ([0-9:.-]+).+Epoch: ([0-9]+)\n[\S\s]+Number of files: ([0-9,]+).+\nNumber of created files: ([0-9,]+).+\nNumber of deleted files: ([0-9,]+)\nNumber of regular files transferred: ([0-9,]+)\nTotal file size: ([0-9,]+).+\nTotal transferred file size: ([0-9,]+).+\nLiteral data: ([0-9,]+).+[\S\s]+Total bytes sent: ([0-9,]+)\nTotal bytes received: ([0-9,]+).+[\S\s]+run_backups.bash took ([0-9,]+)'
+    regex = r'Start time: ([0-9:.-]+).+Epoch: ([0-9]+)\n[\S\s]+Number of files: ([0-9,]+).+\nNumber of created files: ([0-9,]+).+\nNumber of deleted files: ([0-9,]+)\nNumber of regular files transferred: ([0-9,]+)\nTotal file size: ([0-9,]+).+\nTotal transferred file size: ([0-9,]+).+\nLiteral data: ([0-9,]+).+[\S\s]+Total bytes sent: ([0-9,]+)\nTotal bytes received: ([0-9,]+).+[\S\s]+run_backups.+ took ([0-9,]+)'
   
     subregex = [r'Start time: ([0-9:.-]+)',
                 r'Epoch: ([0-9]+)',
@@ -107,7 +107,7 @@ def parseData(myData):
                 r'Literal data: ([0-9,]+)',
                 r'Total bytes sent: ([0-9,]+)',
                 r'Total bytes received: ([0-9,]+)',
-                r'run_backups.bash took ([0-9,]+)' ]
+                r'run_backups.+ took ([0-9,]+)' ]
     fields   = [None,] * 12
     try:
         countRegex = re.compile(regex)
