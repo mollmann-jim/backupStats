@@ -58,7 +58,7 @@ class getData():
             ' bytesSent, elapsed FROM ' + self.table                     + \
             ' WHERE host IS "' + host + '" AND backupName IS "' +  \
             backup + '" ORDER BY timestamp ; '
-        print(select)
+        #print(select)
         self.c.execute(select)
         result = self.c.fetchall()
         return result
@@ -69,11 +69,29 @@ def prtHostHdr(host):
     print('\n\n' + hdr)
 
 def prtBackupHdr(host, backup):
-    hdr = '  ' + host + '  ' + backup + ' '
-    hdr = hdr + '-' * (75 - len(hdr))
-    print('\n' + hdr)
+    hdr = '  ' + host + '  ' + backup + '  '
+    print('{:-^75s}'.format(hdr))
+    
         
-        
+def fmtDT(dt):
+    return dt[:16]
+
+def fmtNum(n):
+    if n is None:
+        x = '      . '
+    elif n < 1000000:
+        x = '{:8d}'.format(n)
+    else:
+        S = ['K', 'M', 'G', 'T']
+        for s in S:
+            n = n / 1000
+            fmt = '{:#6.6g}' + s
+            x = fmt.format(n)
+            if len(x) <= 8:
+                break
+    return x
+ 
+    
 def main():
     home     = os.getenv('HOME')
     backupDB = home + '/tools//backupStats/backups.sql'
@@ -85,14 +103,16 @@ def main():
         backups = DB.getBackupsByHost(host)
         #print('host:', host, 'backups:', backups)
         for backup in backups:
-            backup = 'jim4'
+            prtBackupHdr(host, backup)
             rows   = DB.getRows(host, backup)
             for row in rows:
-                print(row['timestamp'], row['files'], row['regular'],     \
-                      row['totalSize'], row['bytesSent'], row['elapsed'])
-            z = timestamp / 0
+                print(fmtDT(row['timestamp']), \
+                      fmtNum(row['files']),     \
+                      fmtNum(row['regular']),   \
+                      fmtNum(row['totalSize']), \
+                      fmtNum(row['bytesSent']), \
+                      fmtNum(row['elapsed']))
                       
-            prtBackupHdr(host, backup)
 
 
 if __name__ == '__main__':
