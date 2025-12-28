@@ -181,8 +181,9 @@ def make_report(DB, host):
     for backup in backups:
         prtBackupHdr(host, backup)
         prtSectionHeader(reportFmt)
-        result = DB.getBackups(host, backup, 'Yesterday')
-        for row in result:
+        result0 = DB.getBackups(host, backup, 'Yesterday')
+        result1 = DB.getBackups(host, backup, 'Today')
+        for row in result0 + result1:
             prtSectionLine(reportFmt, fmtDT(row['date']), '', None, row)
             byebye=True
         for stat in ['AVG', 'MIN', 'MAX']:
