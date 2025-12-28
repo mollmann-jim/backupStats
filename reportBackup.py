@@ -80,6 +80,7 @@ class getData():
         start, end, name = getTimeInterval.getPeriod(title)
         selectFields = 'SELECT '            \
             ' date(timestamp)    AS date,  '\
+            ' timestamp,'                   \
             ' files,'                       \
             ' regular,'                     \
             ' totalSize,'                   \
@@ -125,7 +126,7 @@ def prtBackupHdr(host, backup):
     
         
 def fmtDT(dt):
-    return dt[:16]
+    return dt[5:16]
 
 def fmtNum(n):
     if n is None:
@@ -175,7 +176,7 @@ def make_report(DB, host):
     prtHostHdr(host)
     first, last = DB.getYears(host)
     print(first, last)
-    reportFmt = '{:10s} {:>6s} {:>6s} {:>8s} {:>8s} {:>8s} {:>8s} {:>8s}'
+    reportFmt = '{:11s} {:>6s} {:>6s} {:>8s} {:>8s} {:>8s} {:>8s} {:>8s}'
     backups = DB.getBackupsByHost(host)
     byebye=False
     for backup in backups:
@@ -184,7 +185,7 @@ def make_report(DB, host):
         result0 = DB.getBackups(host, backup, 'Yesterday')
         result1 = DB.getBackups(host, backup, 'Today')
         for row in result0 + result1:
-            prtSectionLine(reportFmt, fmtDT(row['date']), '', None, row)
+            prtSectionLine(reportFmt, fmtDT(row['timestamp']), '', None, row)
             byebye=True
         for stat in ['AVG', 'MIN', 'MAX']:
             period, row = DB.getStats(host, backup, 'Prev7days', stat);
