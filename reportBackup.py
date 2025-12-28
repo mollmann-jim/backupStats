@@ -7,14 +7,14 @@ import sqlite3
 from dateutil.tz import tz
 import pprint
 #import json
-#from sys import path
-#path.append('/home/jim/tools/Ecobee/')
-#import pyecobee
-#import time
+from sys import path
 import os
-import sys
 from traceback import print_exc
 import argparse
+
+home = os.getenv('HOME')
+path.append(home + '/tools/')
+from shared import getTimeInterval
 
 debug = False
 
@@ -29,7 +29,7 @@ class getData():
         sqlite3.register_adapter(dt.datetime, adapt_datetime)
         sqlite3.register_converter("DATETIME", convert_datetime)
         self.db             = sqlite3.connect(DBname, detect_types=sqlite3.PARSE_DECLTYPES)
-        #db.set_trace_callback(print)
+        #self.db.set_trace_callback(print)
         self.db.row_factory = sqlite3.Row
         self.c              = self.db.cursor()
         self.table          = 'backupStats'
@@ -63,6 +63,57 @@ class getData():
         result = self.c.fetchall()
         return result
 
+    def getYears(self, host):
+        select_min_max_yr = 'SELECT        '\
+            'min(timestamp) AS min,        '\
+            'max(timestamp) AS max         '\
+            'FROM ' + self.table + ' '      \
+            'WHERE host IS ? ;'
+        #print(select_min_max_yr)
+        self.c.execute(select_min_max_yr, (host,))
+        minmax = self.c.fetchone()
+        first  = dt.datetime.fromisoformat(minmax['min'])
+        last   = dt.datetime.fromisoformat(minmax['max'])
+        return first, last
+
+    def getBackups(self, host, bName, title):
+        start, end, name = getTimeInterval.getPeriod(title)
+        selectFields = 'SELECT '            \
+            ' date(timestamp)    AS date,  '\
+            ' files,'                       \
+            ' regular,'                     \
+            ' totalSize,'                   \
+            ' bytesSent,'                   \
+            ' elapsed'                      \
+            ' FROM ' + self.table +         \
+            ' WHERE timestamp >= ? AND timestamp <= ? ' \
+            ' AND host IS ? '         \
+            ' AND backupName IS ? '   \
+            ' ORDER BY timestamp ;'
+        #print(selectFields)
+        self.c.execute(selectFields, (start, end, host, bName))
+        result = self.c.fetchall()
+        return result
+
+    def getStats(self, host, bName, title, stat):
+        start, end, name = getTimeInterval.getPeriod(title)
+        selectFields = 'SELECT '                         \
+            ' COUNT(timestamp) AS count,  '              \
+            ' ' + stat + '(files)       AS files,'       \
+            ' ' + stat + '(regular)     AS regular,'     \
+            ' ' + stat + '(totalSize)   AS totalSize,'   \
+            ' ' + stat + '(bytesSent)   AS bytesSent,'   \
+            ' ' + stat + '(elapsed)     AS elapsed'      \
+            ' FROM ' + self.table +                      \
+            ' WHERE timestamp >= ? AND timestamp <= ? '  \
+            ' AND host IS ? '                            \
+            ' AND backupName IS ? ; '
+        #print(selectFields)
+        self.c.execute(selectFields, (start, end, host, bName))
+        result = self.c.fetchone()
+        return name, result
+
+                       
 def prtHostHdr(host):
     hdr = host + ' '
     hdr = hdr + '=' * (75 - len(hdr))
@@ -78,9 +129,14 @@ def fmtDT(dt):
 
 def fmtNum(n):
     if n is None:
-        x = '      . '
+        x = '.'
     elif n < 1000000:
-        x = '{:8d}'.format(n)
+        if isinstance(n, int):
+            x = '{:8d}'.format(n)
+        elif isinstance(n, float):
+            x = '{:#8.6g}'.format(n)
+        else:
+            x = str(n)
     else:
         S = ['K', 'M', 'G', 'T']
         for s in S:
@@ -90,30 +146,60 @@ def fmtNum(n):
             if len(x) <= 8:
                 break
     return x
- 
+
+def prtSectionHeader(fmt):
+    print(fmt.format('Period', 'Stat', 'Count', 'Files', 'Regular', \
+                     'totSize', 'byteSent', 'Elapsed'))
+def prtSectionLine(fmt, period, stat, count, row):
+    print(fmt.format(period,
+                     stat,
+                     fmtNum(count),
+                     fmtNum(row['files']),
+                     fmtNum(row['regular']),
+                     fmtNum(row['totalSize']),
+                     fmtNum(row['bytesSent']),
+                     fmtNum(row['elapsed'])))
+
+def make_report(DB, host):
+    print('make_report:', host)
+    prtHostHdr(host)
+    first, last = DB.getYears(host)
+    print(first, last)
+    reportFmt = '{:10s} {:>6s} {:>6s} {:8s} {:8s} {:8s} {:8s} {:8s}'
+    backups = DB.getBackupsByHost(host)
+    byebye=False
+    for backup in backups:
+        prtBackupHdr(host, backup)
+        prtSectionHeader(reportFmt)
+        result = DB.getBackups(host, backup, 'Yesterday')
+        for row in result:
+            prtSectionLine(reportFmt, fmtDT(row['date']), '', None, row)
+            byebye=True
+        for stat in ['AVG', 'MIN', 'MAX']:
+            period, row = DB.getStats(host, backup, 'Prev7days', stat);
+            print(period,
+                  stat,                     \
+                  fmtNum(row['count']),     \
+                  fmtNum(row['files']),     \
+                  fmtNum(row['regular']),   \
+                  fmtNum(row['totalSize']), \
+                  fmtNum(row['bytesSent']), \
+                  fmtNum(row['elapsed']))
+        '''
+        if byebye:
+            x = DB / 0
+        '''
     
 def main():
     home     = os.getenv('HOME')
     backupDB = home + '/tools//backupStats/backups.sql'
     DB       = getData(backupDB)
-
     hosts    = DB.getHosts()
+    
     for host in hosts:
-        prtHostHdr(host)
-        backups = DB.getBackupsByHost(host)
-        #print('host:', host, 'backups:', backups)
-        for backup in backups:
-            prtBackupHdr(host, backup)
-            rows   = DB.getRows(host, backup)
-            for row in rows:
-                print(fmtDT(row['timestamp']), \
-                      fmtNum(row['files']),     \
-                      fmtNum(row['regular']),   \
-                      fmtNum(row['totalSize']), \
-                      fmtNum(row['bytesSent']), \
-                      fmtNum(row['elapsed']))
-                      
-
+        #prtHostHdr(host)
+        make_report(DB, host)
+    
 
 if __name__ == '__main__':
     # want unbuffered stdout for use with "tee"
