@@ -134,6 +134,9 @@ def fmtNum(n):
         if isinstance(n, int):
             x = '{:8d}'.format(n)
         elif isinstance(n, float):
+            # if "n" really an integer, format it as an int
+            if abs(float(int(n + 0.5)) - n) < 0.005:
+                return fmtNum(int(n + 0.1))
             x = '{:#8.6g}'.format(n)
         else:
             x = str(n)
@@ -145,6 +148,13 @@ def fmtNum(n):
             x = fmt.format(n)
             if len(x) <= 8:
                 break
+    # strip trailing '.' or trailing '.M' 
+    # '123.' -> '123'; '456.M' -> '456M'
+    #print('"' + x + '"',  re.match(r'.+[0-9]\.$', x), re.match('[0-9].+\.[KMGT]$', x))
+    a = re.match(r'[ 0-9]+\.$', x)
+    b = re.match(r'[0-9].+\.[KMGT]$', x)
+    if a or b:
+        x = ' ' + x.replace('.', '')
     return x
 
 def prtSectionHeader(fmt):
@@ -153,7 +163,7 @@ def prtSectionHeader(fmt):
 def prtSectionLine(fmt, period, stat, count, row):
     print(fmt.format(period,
                      stat,
-                     fmtNum(count),
+                     fmtNum(count)[-6:],
                      fmtNum(row['files']),
                      fmtNum(row['regular']),
                      fmtNum(row['totalSize']),
@@ -165,7 +175,7 @@ def make_report(DB, host):
     prtHostHdr(host)
     first, last = DB.getYears(host)
     print(first, last)
-    reportFmt = '{:10s} {:>6s} {:>6s} {:8s} {:8s} {:8s} {:8s} {:8s}'
+    reportFmt = '{:10s} {:>6s} {:>6s} {:>8s} {:>8s} {:>8s} {:>8s} {:>8s}'
     backups = DB.getBackupsByHost(host)
     byebye=False
     for backup in backups:
@@ -177,18 +187,13 @@ def make_report(DB, host):
             byebye=True
         for stat in ['AVG', 'MIN', 'MAX']:
             period, row = DB.getStats(host, backup, 'Prev7days', stat);
-            print(period,
-                  stat,                     \
-                  fmtNum(row['count']),     \
-                  fmtNum(row['files']),     \
-                  fmtNum(row['regular']),   \
-                  fmtNum(row['totalSize']), \
-                  fmtNum(row['bytesSent']), \
-                  fmtNum(row['elapsed']))
+            prtSectionLine(reportFmt, period, stat, row['count'], row)
+
         '''
         if byebye:
             x = DB / 0
         '''
+        
     
 def main():
     home     = os.getenv('HOME')
