@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x
+#set -x
 logDir="$HOME/tools/backupStats/logs/"
 log=$logDir/report.$(/bin/date +%F-%T | /usr/bin/tr : .);
 reportDir="$HOME/SynologyDrive/Reports.Daily/"
