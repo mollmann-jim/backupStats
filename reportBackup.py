@@ -172,10 +172,10 @@ def prtSectionLine(fmt, period, stat, count, row):
                      fmtNum(row['elapsed'])))
 
 def make_report(DB, host):
-    print('make_report:', host)
+    #print('make_report:', host)
     prtHostHdr(host)
     first, last = DB.getYears(host)
-    print(first, last)
+    #print(first, last)
     reportFmt = '{:11s} {:>6s} {:>6s} {:>8s} {:>8s} {:>8s} {:>8s} {:>8s}'
     backups = DB.getBackupsByHost(host)
     byebye=False
