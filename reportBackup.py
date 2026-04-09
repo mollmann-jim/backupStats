@@ -4,13 +4,13 @@
 import re
 import datetime as dt
 import sqlite3
-from dateutil.tz import tz
-import pprint
+#from dateutil.tz import tz
+#import pprint
 #import json
 from sys import path
 import os
-from traceback import print_exc
-import argparse
+#from traceback import print_exc
+#import argparse
 
 home = os.getenv('HOME')
 path.append(home + '/tools/')
@@ -18,8 +18,8 @@ from shared import getTimeInterval
 
 debug = False
 
-def adapt_datetime(dt):
-    return dt.isoformat(sep=' ')
+def adapt_datetime(DT):
+    return DT.isoformat(sep=' ')
 
 def convert_datetime(val):
     return dt.datetime.fromisoformat(val).replace('T', ' ')
@@ -114,7 +114,7 @@ class getData():
         result = self.c.fetchone()
         return name, result
 
-                       
+
 def prtHostHdr(host):
     hdr = host + ' '
     hdr = hdr + '=' * (75 - len(hdr))
@@ -122,23 +122,23 @@ def prtHostHdr(host):
 
 def prtBackupHdr(host, backup):
     hdr = '  ' + host + '  ' + backup + '  '
-    print('{:-^75s}'.format(hdr))
-    
-        
-def fmtDT(dt):
-    return dt[5:16]
+    print(f'{hdr:-^75s}')
+
+
+def fmtDT(DT):
+    return DT[5:16]
 
 def fmtNum(n):
     if n is None:
         x = '.'
     elif n < 1000000:
         if isinstance(n, int):
-            x = '{:8d}'.format(n)
+            x = f'{n:8d}'
         elif isinstance(n, float):
             # if "n" really an integer, format it as an int
             if abs(float(int(n + 0.5)) - n) < 0.005:
                 return fmtNum(int(n + 0.1))
-            x = '{:#8.6g}'.format(n)
+            x = f'{n:#8.6g}'
         else:
             x = str(n)
     else:
@@ -149,7 +149,7 @@ def fmtNum(n):
             x = fmt.format(n)
             if len(x) <= 8:
                 break
-    # strip trailing '.' or trailing '.M' 
+    # strip trailing '.' or trailing '.M'
     # '123.' -> '123'; '456.M' -> '456M'
     #print('"' + x + '"',  re.match(r'.+[0-9]\.$', x), re.match('[0-9].+\.[KMGT]$', x))
     a = re.match(r'[ 0-9]+\.$', x)
@@ -178,7 +178,6 @@ def make_report(DB, host):
     #print(first, last)
     reportFmt = '{:11s} {:>6s} {:>6s} {:>8s} {:>8s} {:>8s} {:>8s} {:>8s}'
     backups = DB.getBackupsByHost(host)
-    byebye=False
     for backup in backups:
         prtBackupHdr(host, backup)
         prtSectionHeader(reportFmt)
@@ -186,30 +185,25 @@ def make_report(DB, host):
         result1 = DB.getBackups(host, backup, 'Today')
         for row in result0 + result1:
             prtSectionLine(reportFmt, fmtDT(row['timestamp']), '', None, row)
-            byebye=True
         for stat in ['AVG', 'MIN', 'MAX']:
-            period, row = DB.getStats(host, backup, 'Prev7days', stat);
+            period, row = DB.getStats(host, backup, 'Prev7days', stat)
             prtSectionLine(reportFmt, period, stat, row['count'], row)
+        if dt.datetime.now().weekday() == 0:
+            for stat in ['AVG', 'MIN', 'MAX']:
+                period, row = DB.getStats(host, backup, 'Prev30days', stat)
+                prtSectionLine(reportFmt, period, stat, row['count'], row)
 
-        '''
-        if byebye:
-            x = DB / 0
-        '''
-        
-    
 def main():
-    home     = os.getenv('HOME')
+    #home     = os.getenv('HOME')
     backupDB = home + '/tools//backupStats/backups.sql'
     DB       = getData(backupDB)
     hosts    = DB.getHosts()
-    
+
     for host in hosts:
         #prtHostHdr(host)
         make_report(DB, host)
-    
+
 
 if __name__ == '__main__':
     # want unbuffered stdout for use with "tee"
     main()
-
-

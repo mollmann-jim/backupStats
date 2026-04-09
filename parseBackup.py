@@ -4,8 +4,8 @@
 import re
 import datetime as dt
 import sqlite3
-from dateutil.tz import tz
-import pprint
+#from dateutil.tz import tz
+#import pprint
 #import json
 #from sys import path
 #path.append('/home/jim/tools/Ecobee/')
@@ -13,10 +13,9 @@ import pprint
 #import time
 import os
 import sys
-from traceback import print_exc
+#from traceback import print_exc
 import argparse
 
-debug = False
 
 
 class saveData():
@@ -33,18 +32,21 @@ class saveData():
         #self.DB.set_trace_callback(print)
 
     def initDB(self):
-        global debug
         self.c = self.DB.cursor()
         self.devel = False
         indexName = 'Nameindex'
-        
+
         drop = 'DROP INDEX IF EXISTS ' + indexName + ';'
-        if self.devel: print('Dropping index ', indexName)
-        if self.devel: self.c.execute(drop)
+        if self.devel:
+            print('Dropping index ', indexName)
+        if self.devel:
+            self.c.execute(drop)
         drop = 'DROP TABLE IF EXISTS ' + self.table + ';'
-        if self.devel: print('Dropping table ', self.table)
-        if self.devel: self.c.execute(drop)
-        
+        if self.devel:
+            print('Dropping table ', self.table)
+        if self.devel:
+            self.c.execute(drop)
+
         create = 'CREATE TABLE IF NOT EXISTS ' + self.table + ' ( \n' \
             ' recordID        INTEGER PRIMARY KEY, \n' \
             ' timestamp       INTEGER DEFAULT CURRENT_TIMESTAMP, \n' \
@@ -62,11 +64,13 @@ class saveData():
             ' bytesRcvd       INTEGER, \n' \
             ' elapsed         INTEGER  \n' \
             ' );'
-        if self.devel: print(create)
+        if self.devel:
+            print(create)
         self.c.execute(create)
         index  = 'CREATE INDEX IF NOT EXISTS ' + indexName +\
             ' ON ' + self.table + ' (backupName);'
-        if self.devel: print(index)
+        if self.devel:
+            print(index)
         self.c.execute(index)
 
     def save(self, backupName, host, fields):
@@ -75,17 +79,18 @@ class saveData():
             'deleted, regular, totalSize, transferredSize,            \n' \
             'literalSize, bytesSent, bytesRcvd, elapsed )             \n' \
             'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);'
-        if self.devel: print(insert)
+        if self.devel:
+            print(insert)
         myValues = [backupName, host] + fields
         values = tuple(myValues)
         self.c.execute(insert, values)
         self.DB.commit()
-        
+
 def readData(filename):
-    myDate = ''
+    myData = ''
     try:
         with open(filename, 'r', encoding='utf-8') as file:
-            myData= file.read()
+            myData = file.read()
 
     except FileNotFoundError:
         print(f"Error: The file '{filename}' was not found.")
@@ -95,7 +100,7 @@ def readData(filename):
 
 def parseData(myData):
     regex = r'Start time: ([0-9:.-]+).+Epoch: ([0-9]+)\n[\S\s]+Number of files: ([0-9,]+).+\nNumber of created files: ([0-9,]+).+\nNumber of deleted files: ([0-9,]+)\nNumber of regular files transferred: ([0-9,]+)\nTotal file size: ([0-9,]+).+\nTotal transferred file size: ([0-9,]+).+\nLiteral data: ([0-9,]+).+[\S\s]+Total bytes sent: ([0-9,]+)\nTotal bytes received: ([0-9,]+).+[\S\s]+run_backups.+ took ([0-9,]+)'
-  
+
     subregex = [r'Start time: ([0-9:.-]+)',
                 r'Epoch: ([0-9]+)',
                 r'Number of files: ([0-9,]+)',
@@ -117,19 +122,19 @@ def parseData(myData):
         print(f"parseData: An full regex error occurred: {e}")
 
     if fields.count(None) > 0:
-       for i in range(len(fields)):
-           if fields[i] is None:
-               try:
-                   regexC    = re.compile(subregex[i])
-                   fields[i] = regexC.search(myData).group(1)
-               except:
-                   fields[i] = None
-                   print('parseData - Failed:', i, subregex[i])
+        for i in range(len(fields)):
+            if fields[i] is None:
+                try:
+                    regexC    = re.compile(subregex[i])
+                    fields[i] = regexC.search(myData).group(1)
+                except:
+                    fields[i] = None
+                    print('parseData - Failed:', i, subregex[i])
     # DEBUG
     if debug or fields.count(None) > 0:
         for i in range(len(fields)):
             print(i, '\t', subregex[i], '\t\t', fields[i])
-        
+
     return fields
 
 def getTime(fields):
@@ -158,7 +163,6 @@ def removeCommas(fields):
     return fields
 
 def main():
-    global debug
     myParms = argparse.ArgumentParser(description = 'global parms')
     myParms.add_argument('-d', '--debug',   default=False, action='store_true',
                          help='enable debug')
@@ -167,7 +171,8 @@ def main():
     myParms.add_argument('logFile',    help='backup log file')
     args = myParms.parse_args()
     debug = args.debug
-    if debug: print(args)
+    if debug:
+        print(args)
     backupName = args.backupName
     host = args.host
     filename = args.logFile
@@ -179,14 +184,14 @@ def main():
     fields = removeCommas(fields)
     print(fields)
     save.save(backupName, host, fields)
-    
-def adapt_datetime(dt):
-    return dt.isoformat(sep=' ')
+
+def adapt_datetime(DT):
+    return DT.isoformat(sep=' ')
 
 def convert_datetime(val):
     return dt.datetime.fromisoformat(val).replace('T', ' ')
 
-    
+
 if __name__ == '__main__':
     # want unbuffered stdout for use with "tee"
     buffered = os.getenv('PYTHONUNBUFFERED')
